@@ -1,4 +1,4 @@
 requests
-librespot~=0.0.9
-mutagen~=1.47.0
-pillow~=10.2.0
+librespot
+mutagen
+pillow
