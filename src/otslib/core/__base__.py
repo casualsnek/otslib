@@ -9,7 +9,7 @@ from PIL import Image
 from librespot.audio import PlayableContentFeeder
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.metadata import TrackId, EpisodeId
-
+from copy import deepcopy
 from ..common.formating import sanitize_string
 from ..exceptions import MediaFetchInterruptedException, ThumbnailUnavailableException, UnknownMediaTypeException, \
     UnplayableMediaException, StreamReadException, PremiumRequiredException
@@ -171,6 +171,16 @@ class SpotifyMediaProperty:
         if self.__token is None:
             self.__token = self._user.session.tokens().get("user-read-email")
         return self.__token
+
+    @property
+    def metadata(self) -> dict:
+        """
+        Returns metadata for current media
+        :return: dict
+        """
+        if not self._FULL_METADATA_ACQUIRED:
+            self._fetch_metadata()
+        return deepcopy(self._metadata)
 
     @property
     def req_header(self) -> dict:
