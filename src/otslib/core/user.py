@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 def media_items_uri(items: list[SpotifyTrackMedia | SpotifyEpisodeMedia], action: str = 'removed from') -> list[str]:
     uris = []
     for item in items:
-        if item is SpotifyTrackMedia:
+        if isinstance(item, SpotifyTrackMedia):
             uris.append(f'spotify:track:{item.id}')
-        elif item is SpotifyEpisodeMedia:
+        elif isinstance(item, SpotifyEpisodeMedia):
             uris.append(f'spotify:episode:{item.id}')
         else:
             raise TypeError(f'Object of type "{type(item)}" cannot be {action} playlist')

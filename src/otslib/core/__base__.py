@@ -116,6 +116,8 @@ class SpotifyMediaProperty:
         :param use_lookalikes_in_path: Use similar looking unicodes characters for characters that are not allowed in filenames
         :return: str: Formatted string
         """
+        if not self._FULL_METADATA_ACQUIRED:
+            self._fetch_metadata()
         flattened_meta: dict = flatten_dictionary(self._metadata)
 
         # TODO: Use recursive replacement or something else to process collections properly as well
@@ -148,6 +150,17 @@ class SpotifyMediaProperty:
                     flattened_meta[key] = value
         string = sanitize_string(string.format(**flattened_meta))
         return string
+
+    def get_meta(self, key: str, default: Any = None) -> Any:
+        """
+        Returns the value of a metadata key
+        :param key: String
+        :param default: Default value to return if key not found
+        :return: Any
+        """
+        if key not in self._metadata and not self._FULL_METADATA_ACQUIRED:
+            self._fetch_metadata()
+        return self._metadata.get(key, default)
 
     @property
     def session_token(self) -> str:
