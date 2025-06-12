@@ -1,13 +1,11 @@
+from src.otslib.core import SpotifyPlaylist, SpotifyTrackMedia
 from ..core.mediaitem import SpotifyPlaylist, SpotifyTrackMedia, SpotifyEpisodeMedia, SpotifyArtist
 from ..common.utils import pick_thumbnail, GENRES, MutableBool
 from librespot.zeroconf import ZeroconfServer
 from librespot.proto import Connect_pb2 as Connect
-from librespot import util as ls_util
-from typing import Union, TYPE_CHECKING
-import threading
+from typing import Union, TYPE_CHECKING, Any, Generator
 import importlib
 import requests
-import random
 import time
 import os
 import json
@@ -97,7 +95,7 @@ class SpotifyUser:
     def from_zeroconf(save_session: bool = False, session_path: Union[str, None] = None, uuid: str = '', cancel: MutableBool|None = None, no_profile: bool = False) -> Union['SpotifyUser', None]:
         """
         Create aa SpotifyUser instance using zeroconf login
-        :param save_session: Set to true in order to save loggedin session to a JSON file
+        :param save_session: Set to true in order to save logged-in session to a JSON file
         :param uuid: UUID, Optional for tracking
         :param session_path: Path where the created session will be saved
         :param cancel: Optional for cancelling the session midway
@@ -106,7 +104,7 @@ class SpotifyUser:
         """
 
         # clientID field is required
-        CLIENT_ID: str = "65b708073fc0480ea92a077233ca87bd"
+        client_id: str = "65b708073fc0480ea92a077233ca87bd"
         cancel: MutableBool = MutableBool(False) if cancel is None else cancel
         # Make sure the save path is valid, if session saving is enabled
         if session_path is not None:
@@ -118,7 +116,7 @@ class SpotifyUser:
                 os.makedirs(os.path.dirname(session_path), exist_ok=True)
 
         # Prepare ZeroconfServer
-        ZeroconfServer._ZeroconfServer__default_get_info_fields['clientID'] = CLIENT_ID
+        ZeroconfServer._ZeroconfServer__default_get_info_fields['clientID'] = client_id
         zs_builder = ZeroconfServer.Builder()
         zs_builder.device_type = Connect.DeviceType.COMPUTER
         zs_builder.device_name = 'OTS Connector'
@@ -350,7 +348,7 @@ class SpotifyUser:
                             seed_artists: list[SpotifyArtist] | None = None,
                             seed_tracks: list[SpotifyTrackMedia] | None = None,
                             seed_genres: list[str] | None = None,
-                            ) -> list[SpotifyTrackMedia]:
+                            ) -> Generator[SpotifyTrackMedia, Any, None]:
         """
         Get recommended tracks based on other tracks.
         :param user_audio_params: Audio parameters to use.
@@ -495,7 +493,7 @@ class SpotifyUser:
         return self.auth_token_scoped()
 
     @property
-    def playlists(self) -> list[SpotifyPlaylist]:
+    def playlists(self) -> Generator[SpotifyPlaylist, Any, None]:
         """
         Returns list of user's playlist
         :return:
@@ -535,7 +533,7 @@ class SpotifyUser:
                 break
 
     @property
-    def liked(self) -> list[SpotifyTrackMedia]:
+    def liked(self) -> Generator[SpotifyTrackMedia, Any, None]:
         """
         Returns list of songs liked by user
         :return: list[SpotifyTrackMedia]

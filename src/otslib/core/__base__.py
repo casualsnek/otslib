@@ -2,7 +2,7 @@ import os
 import subprocess
 import threading
 import time
-from typing import Callable, Generator, Optional, Any, Union, TYPE_CHECKING
+from typing import Callable, Generator, Any, Union, TYPE_CHECKING
 from io import BytesIO
 import requests
 from PIL import Image
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class SpotifyMediaProperty:
     """
-    This class defines the base for Media and Media Collection classe, and houses common functions for similar tasks
+    This class defines the base for Media and Media Collection class, and houses common functions for similar tasks
     """
 
     def __init__(self, media_id: str):
@@ -130,8 +130,8 @@ class SpotifyMediaProperty:
                         value = value.replace('\\', '⧵')  # 29FS  REVERSE SOLIDUS OPERATOR FOR WINDOWS PATH SEP
                         value = value.replace('*', '𐌟')  # 1031F OLD ITALIC LETTER ESS
                         value = value.replace('?', 'ॽ')  # 097D DEVANAGARI LETTER GLOTTAL STOP
-                        value = value.replace('<', 'ᐸ')  # 1438 CANADIAN SYLLABICS PA
-                        value = value.replace('>', 'ᐳ')  # 1433 CANADIAN SYLLABICS PO
+                        value = value.replace('<', 'ᐸ')  # 1438 CANADIAN SYLLABIC PA
+                        value = value.replace('>', 'ᐳ')  # 1433 CANADIAN SYLLABIC PO
                         value = value.replace('"', '″')  # 2033 DOUBLE PRIME
                         # TODO: Get a windows system to check if '|' and ':' can be used in filenames/path
                         # Replacements: '|' -> 'ǀ' 01C0 LATIN LETTER DENTAL CLICK
@@ -142,7 +142,7 @@ class SpotifyMediaProperty:
         elif is_filepath and not use_lookalikes_in_path:
             for key, value in flattened_meta:
                 if value is str:
-                    # Since this string has is_filepath set to True, meta should not cause path seperation
+                    # Since this string has is_filepath set to True, meta should not cause path separation
                     if os.name == 'nt':
                         value = value.replace('\\', '-')
                     else:

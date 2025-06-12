@@ -1,10 +1,10 @@
 import json
 import os.path
-from typing import Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING, Any, Generator
 from ..common.formating import metadata_list_to_string
 from ..common.utils import cached_request
 from ..core.__base__ import AbstractMediaItem, AbstractMediaCollection
-from ..exceptions import LyricsUnavailableException
+from ..exceptions import LyricsUnavailableException, TrackNotInPlaylistException
 
 if TYPE_CHECKING:
     from ..core.user import SpotifyUser
@@ -64,6 +64,7 @@ class SpotifyTrackMedia(AbstractMediaItem):
             'album_name': track_info['tracks'][0]['album']["name"],
             'name': track_info['tracks'][0]['name'],
             'url': track_info['tracks'][0]['external_urls']['spotify'],
+            'artist': track_info['tracks'][0]['artists'][0]['name'],
             'artist_url': track_info['tracks'][0]['artists'][0]['external_urls']['spotify'],
             'artist_id': track_info['tracks'][0]['artists'][0]['id'],
             'album_url': track_info['tracks'][0]['album']['external_urls']['spotify'],
@@ -151,7 +152,7 @@ class SpotifyTrackMedia(AbstractMediaItem):
                 lyrics.append(f'[by:{lyrics_json["provider"]}]')
                 # TODO: Add application version
                 lyrics.append(f'[ve:---]')
-                lyrics.append('[re:casualsnek-onTheSpot]')
+                lyrics.append('[re:otslib@github.com/casualsnek]')
                 lyrics.append(f'[length:{digit}{m}:{s}]\n')
 
                 if lyrics_json['kind'].lower() == 'text':
@@ -255,7 +256,7 @@ class SpotifyAlbum(AbstractMediaCollection):
         :return: None
         """
         super().__init__(collection_id=album_id)
-        self._collection_class: SpotifyTrackMedia = SpotifyTrackMedia
+        self._collection_class: type[SpotifyTrackMedia] = SpotifyTrackMedia
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
         self.set_user(user)
 
@@ -304,7 +305,7 @@ class SpotifyAlbum(AbstractMediaCollection):
         self._FULL_METADATA_ACQUIRED = True
 
     @property
-    def tracks(self) -> list[SpotifyTrackMedia]:
+    def tracks(self) -> Generator[Any, Any, Any]:
         """
         Returns list containing SpotifyTrackMedia instance of tracks within this album
         :return: list[SpotifyTrackMedia]
@@ -342,7 +343,7 @@ class SpotifyArtist(AbstractMediaCollection):
         :return: None
         """
         super().__init__(collection_id=artist_id)
-        self._collection_class: SpotifyAlbum = SpotifyAlbum
+        self._collection_class: type[SpotifyAlbum] = SpotifyAlbum
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
         self.set_user(user)
 
@@ -379,7 +380,7 @@ class SpotifyArtist(AbstractMediaCollection):
         self._FULL_METADATA_ACQUIRED = True
 
     @property
-    def albums(self) -> list[SpotifyAlbum]:
+    def albums(self) -> Generator[Any, Any, Any]:
         """
         Returns list containing SpotifyAlbum instance of albums by this artist
         :return: list[SpotifyAlbum]
@@ -399,7 +400,7 @@ class SpotifyPlaylist(AbstractMediaCollection):
         :return: None
         """
         super().__init__(collection_id=playlist_id)
-        self._collection_class: SpotifyTrackMedia = SpotifyTrackMedia
+        self._collection_class: type[SpotifyTrackMedia] = SpotifyTrackMedia
         self.__added_by: dict = {}
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
         self.set_user(user)
@@ -450,14 +451,14 @@ class SpotifyPlaylist(AbstractMediaCollection):
         self._FULL_METADATA_ACQUIRED = True
 
     # TODO: See it this actually works as expected
-    def get_added_by_user(track: SpotifyTrackMedia) -> SpotifyArtist:
+    def get_added_by_user(self, track: SpotifyTrackMedia) -> SpotifyArtist:
         if track.id in self.__added_by:
             return SpotifyArtist(artist_id=self.__added_by[track.id], user=self._user)
         else:
-            TrackNotInPlaylistException(f"The track {track.id} is not in playlist {self.id}")
+            raise TrackNotInPlaylistException(f"The track {track.id} is not in playlist {self.id}")
 
     @property
-    def tracks(self) -> list[SpotifyTrackMedia]:
+    def tracks(self) -> Generator[Any, Any, Any]:
         """
         Returns list containing SpotifyTrackMedia instance of the tracks in this playlist
         :return: list[SpotifyAlbum]
@@ -492,7 +493,7 @@ class SpotifyPodcast(AbstractMediaCollection):
         :return: None
         """
         super().__init__(collection_id=podcast_id)
-        self._collection_class: SpotifyEpisodeMedia = SpotifyEpisodeMedia
+        self._collection_class: type[SpotifyEpisodeMedia] = SpotifyEpisodeMedia
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
         self.set_user(user)
 
@@ -533,7 +534,7 @@ class SpotifyPodcast(AbstractMediaCollection):
         self._FULL_METADATA_ACQUIRED = True
 
     @property
-    def episodes(self) -> list[SpotifyEpisodeMedia]:
+    def episodes(self) -> Generator[Any, Any, Any]:
         """
         Returns list containing SpotifyEpisodeMedia instance of the episodes in this show/podcast
         :return: list[SpotifyEpisodeMedia]

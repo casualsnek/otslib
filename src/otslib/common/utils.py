@@ -78,10 +78,7 @@ def cached_request(cache_dir: Union[str, None], lifetime: int, *args, **kwargs) 
     """
     cache_file: str = ''
     if cache_dir is not None:
-        kwargs_sig: str = json.dumps(kwargs).replace(
-            kwargs.get('headers', {}).get('Authorization', None),
-            "BEARER USER_TOKEN"
-        )
+        kwargs_sig: str = json.dumps(kwargs).replace(kwargs.get('headers', {}).get('Authorization', "AuthorizationToken"),"BEARER USER_TOKEN")
         args_hash: str = hashlib.sha224(
             f'{str(args)}:{kwargs_sig}'.encode()
         ).hexdigest()
@@ -114,8 +111,8 @@ def cached_request(cache_dir: Union[str, None], lifetime: int, *args, **kwargs) 
 def convert_from_ogg(ffmpeg_path: str, source_media: str, bitrate: int,
                      extra_params: Union[list, None] = None) -> os.PathLike:
     """
-    Converts spotify ogg vorbis streams to another format via ffmpeg, Note: source media should use the target file
-    extension, the source media is assumed ogg vorbis regardless of the source media extension
+    Converts spotify Ogg Vorbis streams to another format via ffmpeg, Note: source media should use the target file
+    extension, the source media is assumed Ogg Vorbis regardless of the source media extension
     :param ffmpeg_path: Path to ffmpeg binary
     :param source_media: Path of media to convert
     :param bitrate: Target bitrate of converted media
