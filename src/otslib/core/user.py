@@ -1,5 +1,5 @@
 from ..core.mediaitem import SpotifyPlaylist, SpotifyTrackMedia, SpotifyEpisodeMedia, SpotifyArtist
-from ..common.utils import pick_thumbnail, GENRES
+from ..common.utils import pick_thumbnail, GENRES, MutableBool
 from librespot.zeroconf import ZeroconfServer
 from librespot.proto import Connect_pb2 as Connect
 from librespot import util as ls_util
@@ -94,17 +94,20 @@ class SpotifyUser:
         return profile
 
     @staticmethod
-    def from_zeroconf(save_session: bool = False, session_path: Union[str, None] = None, uuid: str = '') -> 'SpotifyUser':
+    def from_zeroconf(save_session: bool = False, session_path: Union[str, None] = None, uuid: str = '', cancel: MutableBool|None = None, no_profile: bool = False) -> Union['SpotifyUser', None]:
         """
         Create aa SpotifyUser instance using zeroconf login
         :param save_session: Set to true in order to save loggedin session to a JSON file
         :param uuid: UUID, Optional for tracking
         :param session_path: Path where the created session will be saved
+        :param cancel: Optional for cancelling the session midway
+        :param no_profile: Optional Return None, without SpotifyUser instance. Useful for just saving credentials
         :return: SpotifyUser Instance
         """
 
         # clientID field is required
         CLIENT_ID: str = "65b708073fc0480ea92a077233ca87bd"
+        cancel: MutableBool = MutableBool(False) if cancel is None else cancel
         # Make sure the save path is valid, if session saving is enabled
         if session_path is not None:
             if os.path.isfile(session_path) and save_session:
@@ -124,17 +127,18 @@ class SpotifyUser:
             zs_builder.conf.stored_credentials_file = session_path
         zserver = zs_builder.create()
         profile: Union[None, SpotifyUser] = None
-        ex: Union[None, Exception] = None
+        ex: Union[None, Exception, KeyboardInterrupt] = None
         try:
-            while True:
+            while True and bool(cancel) is False:
                 time.sleep(1)
                 if zserver.has_valid_session():
                     # Login was successful
-                    profile = SpotifyUser(
-                        session_path=session_path if session_path is not None else '',
-                        session=zserver._ZeroconfServer__session
-                        )
-                    profile.uuid = uuid
+                    if no_profile is not True:
+                        profile = SpotifyUser(
+                            session_path=session_path if session_path is not None else '',
+                            session=zserver._ZeroconfServer__session
+                            )
+                        profile.uuid = uuid
                     break
         except KeyboardInterrupt:
             ex = KeyboardInterrupt("Login session interrupted by user..")
