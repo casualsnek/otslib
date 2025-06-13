@@ -51,7 +51,7 @@ class SearchResult:
         )
 
     @property
-    def artists(self) -> list[SpotifyArtist]:
+    def artists(self) -> Generator[SpotifyArtist, Any, None]:
         """
         Returns generator for artists in the search result
         :return:
@@ -75,7 +75,7 @@ class SearchResult:
             yield artist_instance
 
     @property
-    def playlists(self) -> list[SpotifyPlaylist]:
+    def playlists(self) -> Generator[SpotifyPlaylist, Any, None]:
         """
         Returns generator for playlists in the search result
         :return:
@@ -104,7 +104,7 @@ class SearchResult:
             yield playlist_instance
 
     @property
-    def albums(self) -> list[SpotifyAlbum]:
+    def albums(self) -> Generator[SpotifyAlbum, Any, None]:
         """
         Returns generator for albums in the search result
         :return: Generator[SpotifyAlbum]
@@ -131,7 +131,7 @@ class SearchResult:
             yield album_instance
 
     @property
-    def tracks(self) -> list[SpotifyTrackMedia]:
+    def tracks(self) -> Generator[SpotifyTrackMedia, Any, None]:
         """
         Returns generator for tracks in the search result
         :return: Generator[SpotifyTrackMedia]
@@ -176,7 +176,7 @@ class SearchResult:
             yield track_instance
 
     @property
-    def podcasts(self) -> list[SpotifyPodcast]:
+    def podcasts(self) -> Generator[SpotifyPodcast, Any, None]:
         """
         Returns generator for podcasts in the search result
         :return: Generator[SpotifyPodcast]
@@ -201,7 +201,7 @@ class SearchResult:
             yield podcast_instance
 
     @property
-    def episodes(self) -> list[SpotifyEpisodeMedia]:
+    def episodes(self) -> Generator[SpotifyEpisodeMedia, Any, None]:
         """
         Returns generator for episodes in the search result
         :return: Generator[SpotifyEpisodeMedia]

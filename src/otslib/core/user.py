@@ -174,7 +174,7 @@ class SpotifyUser:
         r = requests.put(liked_add_api, headers=self.req_header_scoped('user-library-modify'))
         return r.status_code == 200
 
-    def unlike_track(self, tracks: list[SpotifyTrackMedia]) -> bool:
+    def unlike_tracks(self, tracks: list[SpotifyTrackMedia]) -> bool:
         """
         Removes spotify tracks from user's liked playlist
         :param tracks: List of SpotifyTrackMedia instances
@@ -188,7 +188,7 @@ class SpotifyUser:
         r = requests.delete(liked_remove_api, headers=self.req_header_scoped('user-library-modify'))
         return r.status_code == 200
 
-    def has_liked_track(self, tracks: list[SpotifyTrackMedia]) -> list[bool]:
+    def has_liked_tracks(self, tracks: list[SpotifyTrackMedia]) -> list[bool]:
         """
         Checks if user has liked specified spotify tracks
         :param tracks: List of SpotifyTrackMedia instances

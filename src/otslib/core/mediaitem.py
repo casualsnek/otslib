@@ -9,9 +9,17 @@ from ..exceptions import LyricsUnavailableException, TrackNotInPlaylistException
 if TYPE_CHECKING:
     from ..core.user import SpotifyUser
 
+DEFAULT_PLAYLIST_CACHE_DURATION = 600 * 60 * 3  # 3 Hours
+DEFAULT_PODCAST_CACHE_DURATION = 600 * 60 * 12 # 12 Hours
+DEFAULT_CACHE_DURATION = 600 * 60 * 3 # 3 days
+DEFAULT_CACHE_DIRECTORY = os.path.join(os.path.expanduser('~'), '.cache', 'otslib', 'apicache')
+try:
+    os.makedirs(DEFAULT_CACHE_DIRECTORY, exist_ok=True)
+except OSError:
+    DEFAULT_CACHE_DIRECTORY = None
 
 class SpotifyTrackMedia(AbstractMediaItem):
-    def __init__(self, track_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = None) -> None:
+    def __init__(self, track_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = DEFAULT_CACHE_DIRECTORY, cache_duration: int = DEFAULT_CACHE_DURATION) -> None:
         """
         Initialises the spotify track class instance
         :param track_id: Track id
@@ -20,6 +28,7 @@ class SpotifyTrackMedia(AbstractMediaItem):
         """
         super().__init__(media_id=track_id, media_type=0)
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
+        self.cache_duration = cache_duration
         self.set_user(user)
 
 
@@ -31,8 +40,8 @@ class SpotifyTrackMedia(AbstractMediaItem):
         track_api: str = f'https://api.spotify.com/v1/tracks?ids={self.id}&market=from_token'
         credits_api: str = f'https://spclient.wg.spotify.com/track-credits-view/v0/experimental/{self.id}/credits'
 
-        track_info: dict = json.loads(cached_request(self.http_cache, 0, track_api, headers=self.req_header))
-        credits_info: dict = json.loads(cached_request(self.http_cache, 0, credits_api, headers=self.req_header))
+        track_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, track_api, headers=self.req_header))
+        credits_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, credits_api, headers=self.req_header))
         track_credits: dict = {}
         for credit_block in credits_info['roleCredits']:
             try:
@@ -46,11 +55,11 @@ class SpotifyTrackMedia(AbstractMediaItem):
                 pass
         track_credits['source'] = credits_info.get('sourceNames', [])
         album_info: dict = json.loads(
-            cached_request(self.http_cache, 0, track_info['tracks'][0]['album']['href'] + '?market=from_token',
+            cached_request(self.http_cache, self.cache_duration, track_info['tracks'][0]['album']['href'] + '?market=from_token',
                            headers=self.req_header)
         )
         artist_info: dict = json.loads(
-            cached_request(self.http_cache, 0, track_info['tracks'][0]['artists'][0]['href'] + '?market=from_token',
+            cached_request(self.http_cache, self.cache_duration, track_info['tracks'][0]['artists'][0]['href'] + '?market=from_token',
                            headers=self.req_header)
         )
         date_segments: list = track_info['tracks'][0]['album']['release_date'].split("-")
@@ -134,7 +143,7 @@ class SpotifyTrackMedia(AbstractMediaItem):
         lyrics: list = []
         try:
             lyrics_api = f'https://spclient.wg.spotify.com/lyrics/v1/track/{self.id}?format=json&market=from_token'
-            lyrics_req = json.loads(cached_request(self.http_cache, 0, lyrics_api, headers=self.req_header))
+            lyrics_req = json.loads(cached_request(self.http_cache, self.cache_duration, lyrics_api, headers=self.req_header))
             artist = metadata_list_to_string(self.meta_artists)
             track_title = self.meta_name
             album = self.meta_album_name
@@ -182,7 +191,7 @@ class SpotifyTrackMedia(AbstractMediaItem):
 
 class SpotifyEpisodeMedia(AbstractMediaItem):
 
-    def __init__(self, episode_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = None) -> None:
+    def __init__(self, episode_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = DEFAULT_CACHE_DIRECTORY, cache_duration: int = DEFAULT_CACHE_DURATION) -> None:
         """
         Initialises the spotify podcast episode class instance
         :param episode_id: Episode id
@@ -191,6 +200,7 @@ class SpotifyEpisodeMedia(AbstractMediaItem):
         """
         super().__init__(media_id=episode_id, media_type=1)
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
+        self.cache_duration = cache_duration
         self.set_user(user)
 
     def _fetch_metadata(self) -> None:
@@ -199,7 +209,7 @@ class SpotifyEpisodeMedia(AbstractMediaItem):
         :return: None
         """
         episode_api: str = f'https://api.spotify.com/v1/tracks?ids={self.id}&market=from_token'
-        episode_info: dict = json.loads(cached_request(self.http_cache, 0, episode_api, headers=self.req_header))
+        episode_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, episode_api, headers=self.req_header))
         self._covers = episode_info['tracks'][0]['album']['images']
         self._metadata = {
             'name': episode_info['name'],
@@ -247,7 +257,7 @@ class SpotifyEpisodeMedia(AbstractMediaItem):
 
 
 class SpotifyAlbum(AbstractMediaCollection):
-    def __init__(self, album_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = None) -> None:
+    def __init__(self, album_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = DEFAULT_CACHE_DIRECTORY, cache_duration: int = DEFAULT_CACHE_DURATION) -> None:
         """
         Initializes instance of SpotifyAlbum class representing a spotify album
         :param album_id: Spotify ID of the Album
@@ -258,6 +268,7 @@ class SpotifyAlbum(AbstractMediaCollection):
         super().__init__(collection_id=album_id)
         self._collection_class: type[SpotifyTrackMedia] = SpotifyTrackMedia
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
+        self.cache_duration = cache_duration
         self.set_user(user)
 
     def _fetch_metadata(self) -> None:
@@ -298,7 +309,7 @@ class SpotifyAlbum(AbstractMediaCollection):
                 self._items_id.append(track['id'])
             if album_info['tracks']['next']:
                 album_info: dict = json.loads(
-                    cached_request(self.http_cache, 0, album_info['tracks']['next'], headers=self.req_header)
+                    cached_request(self.http_cache, self.cache_duration, album_info['tracks']['next'], headers=self.req_header)
                 )
             else:
                 break
@@ -334,7 +345,7 @@ class SpotifyAlbum(AbstractMediaCollection):
 
 
 class SpotifyArtist(AbstractMediaCollection):
-    def __init__(self, artist_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = None) -> None:
+    def __init__(self, artist_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = DEFAULT_CACHE_DIRECTORY, cache_duration: int = DEFAULT_CACHE_DURATION) -> None:
         """
         Initializes instance of SpotifyArtist class representing a spotify artist
         :param artist_id: Spotify ID of the Artist
@@ -345,6 +356,7 @@ class SpotifyArtist(AbstractMediaCollection):
         super().__init__(collection_id=artist_id)
         self._collection_class: type[SpotifyAlbum] = SpotifyAlbum
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
+        self.cache_duration = cache_duration
         self.set_user(user)
 
     def _fetch_metadata(self) -> None:
@@ -353,7 +365,7 @@ class SpotifyArtist(AbstractMediaCollection):
         :return: None
         """
         artist_api: str = f'https://api.spotify.com/v1/artists/{self.id}?market=from_token'
-        artist_info: dict = json.loads(cached_request(self.http_cache, 0, artist_api, headers=self.req_header))
+        artist_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, artist_api, headers=self.req_header))
         self._covers = artist_info['images']
         self._metadata = {
             'name': artist_info['name'],
@@ -370,7 +382,7 @@ class SpotifyArtist(AbstractMediaCollection):
                                 f'include_groups=album,single&market=from_token&limit=20&offset=0'
         while True:
             artist_album_info: dict = json.loads(
-                cached_request(self.http_cache, 0, artist_album_api, headers=self.req_header))
+                cached_request(self.http_cache, self.cache_duration, artist_album_api, headers=self.req_header))
             for album in artist_album_info['items']:
                 self._items_id.append(album['id'])
             if artist_album_info['next']:
@@ -391,7 +403,7 @@ class SpotifyArtist(AbstractMediaCollection):
 class SpotifyPlaylist(AbstractMediaCollection):
 
 
-    def __init__(self, playlist_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = None) -> None:
+    def __init__(self, playlist_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = DEFAULT_CACHE_DIRECTORY, cache_duration: int = DEFAULT_PLAYLIST_CACHE_DURATION) -> None:
         """
         Initializes instance of SpotifyPlaylist class representing a spotify playlist
         :param playlist_id: Spotify ID of the Playlist
@@ -403,6 +415,7 @@ class SpotifyPlaylist(AbstractMediaCollection):
         self._collection_class: type[SpotifyTrackMedia] = SpotifyTrackMedia
         self.__added_by: dict = {}
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
+        self.cache_duration = cache_duration
         self.set_user(user)
 
     def _fetch_metadata(self) -> None:
@@ -413,7 +426,7 @@ class SpotifyPlaylist(AbstractMediaCollection):
         fields = "name,description,followers,images,id,external_urls," \
                  "name,owner(id,display_name,external_urls),tracks.items(added_by.id,track.id),tracks.next"
         playlist_api: str = f'https://api.spotify.com/v1/playlists/{self.id}?fields={fields}&market=from_token'
-        playlist_info: dict = json.loads(cached_request(self.http_cache, 0, playlist_api, headers=self.req_header))
+        playlist_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, playlist_api, headers=self.req_header))
         self._covers = playlist_info['images']
         self._metadata = {
             'name': playlist_info['name'],
@@ -442,10 +455,10 @@ class SpotifyPlaylist(AbstractMediaCollection):
                 # Fix the uri so it actually works
                 next_uri_fixed: str = playlist_info['tracks']['next'].replace(f'fields={fields}', 'next,items(added_by.id,track.id)')
                 tracks_api_resp: dict = json.loads(
-                    cached_request(self.http_cache, 0, next_uri_fixed, headers=self.req_header)
+                    cached_request(self.http_cache, self.cache_duration, next_uri_fixed, headers=self.req_header)
                 )
-                playlist_info = {}
-                playlist_info['tracks'] = tracks_api_resp
+                # playlist_info = {}
+                playlist_info = {'tracks': tracks_api_resp}
             else:
                 break
         self._FULL_METADATA_ACQUIRED = True
@@ -484,7 +497,7 @@ class SpotifyPlaylist(AbstractMediaCollection):
 
 class SpotifyPodcast(AbstractMediaCollection):
 
-    def __init__(self, podcast_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = None) -> None:
+    def __init__(self, podcast_id: str, user: 'SpotifyUser', http_cache: Union[str, None] = DEFAULT_CACHE_DIRECTORY, cache_duration: int = DEFAULT_PODCAST_CACHE_DURATION) -> None:
         """
         Initializes instance of SpotifyPodcast class representing a spotify podcast
         :param podcast_id: Spotify ID of the Podcast
@@ -495,6 +508,7 @@ class SpotifyPodcast(AbstractMediaCollection):
         super().__init__(collection_id=podcast_id)
         self._collection_class: type[SpotifyEpisodeMedia] = SpotifyEpisodeMedia
         self.http_cache = os.path.abspath(http_cache) if http_cache is not None else None
+        self.cache_duration = cache_duration
         self.set_user(user)
 
     def _fetch_metadata(self) -> None:
@@ -503,7 +517,7 @@ class SpotifyPodcast(AbstractMediaCollection):
         :return: None
         """
         podcast_api: str = f'https://api.spotify.com/v1/shows/{self.id}?market=from_token'
-        podcast_info: dict = json.loads(cached_request(self.http_cache, 0, podcast_api, headers=self.req_header))
+        podcast_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, podcast_api, headers=self.req_header))
         self._covers = podcast_info['images']
         self._metadata = {
             'name': podcast_info['name'],
@@ -527,7 +541,7 @@ class SpotifyPodcast(AbstractMediaCollection):
                 self._items_id.append(item['id'])
             if podcast_info['episodes']['next']:
                 podcast_info = json.loads(
-                    cached_request(self.http_cache, 0, podcast_info['episodes']['next'], headers=self.req_header)
+                    cached_request(self.http_cache, self.cache_duration, podcast_info['episodes']['next'], headers=self.req_header)
                 )
             else:
                 break

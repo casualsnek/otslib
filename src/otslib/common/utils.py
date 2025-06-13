@@ -77,7 +77,7 @@ def cached_request(cache_dir: Union[str, None], lifetime: int, *args, **kwargs) 
     :return: String response
     """
     cache_file: str = ''
-    if cache_dir is not None:
+    if cache_dir is not None or os.environ.get('OTSLIB_DISABLE_CACHE', 0) == 1:
         kwargs_sig: str = json.dumps(kwargs).replace(kwargs.get('headers', {}).get('Authorization', "AuthorizationToken"),"BEARER USER_TOKEN")
         args_hash: str = hashlib.sha224(
             f'{str(args)}:{kwargs_sig}'.encode()
