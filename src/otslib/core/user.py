@@ -1,4 +1,3 @@
-from src.otslib.core import SpotifyPlaylist, SpotifyTrackMedia
 from ..core.mediaitem import SpotifyPlaylist, SpotifyTrackMedia, SpotifyEpisodeMedia, SpotifyArtist
 from ..common.utils import pick_thumbnail, GENRES, MutableBool
 from librespot.zeroconf import ZeroconfServer
