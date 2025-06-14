@@ -40,8 +40,8 @@ class SpotifyTrackMedia(AbstractMediaItem):
         track_api: str = f'https://api.spotify.com/v1/tracks?ids={self.id}&market=from_token'
         credits_api: str = f'https://spclient.wg.spotify.com/track-credits-view/v0/experimental/{self.id}/credits'
 
-        track_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, track_api, headers=self.req_header))
-        credits_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, credits_api, headers=self.req_header))
+        track_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, track_api))
+        credits_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, credits_api))
         track_credits: dict = {}
         for credit_block in credits_info['roleCredits']:
             try:
@@ -55,12 +55,10 @@ class SpotifyTrackMedia(AbstractMediaItem):
                 pass
         track_credits['source'] = credits_info.get('sourceNames', [])
         album_info: dict = json.loads(
-            cached_request(self.http_cache, self.cache_duration, track_info['tracks'][0]['album']['href'] + '?market=from_token',
-                           headers=self.req_header)
+            cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, track_info['tracks'][0]['album']['href'] + '?market=from_token')
         )
         artist_info: dict = json.loads(
-            cached_request(self.http_cache, self.cache_duration, track_info['tracks'][0]['artists'][0]['href'] + '?market=from_token',
-                           headers=self.req_header)
+            cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, track_info['tracks'][0]['artists'][0]['href'] + '?market=from_token')
         )
         date_segments: list = track_info['tracks'][0]['album']['release_date'].split("-")
         self._covers = track_info['tracks'][0]['album']['images']
@@ -209,7 +207,7 @@ class SpotifyEpisodeMedia(AbstractMediaItem):
         :return: None
         """
         episode_api: str = f'https://api.spotify.com/v1/tracks?ids={self.id}&market=from_token'
-        episode_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, episode_api, headers=self.req_header))
+        episode_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, episode_api))
         self._covers = episode_info['tracks'][0]['album']['images']
         self._metadata = {
             'name': episode_info['name'],
@@ -277,7 +275,7 @@ class SpotifyAlbum(AbstractMediaCollection):
         :return: None
         """
         album_api: str = f'https://api.spotify.com/v1/albums/{self.id}?market=from_token'
-        album_info: dict = json.loads(cached_request(self.http_cache, 0, album_api, headers=self.req_header))
+        album_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, album_api))
         self._covers = album_info['images']
         date_segments: list = album_info['release_date'].split("-")
         self._metadata = {
@@ -309,7 +307,7 @@ class SpotifyAlbum(AbstractMediaCollection):
                 self._items_id.append(track['id'])
             if album_info['tracks']['next']:
                 album_info: dict = json.loads(
-                    cached_request(self.http_cache, self.cache_duration, album_info['tracks']['next'], headers=self.req_header)
+                    cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, album_info['tracks']['next'])
                 )
             else:
                 break
@@ -365,7 +363,7 @@ class SpotifyArtist(AbstractMediaCollection):
         :return: None
         """
         artist_api: str = f'https://api.spotify.com/v1/artists/{self.id}?market=from_token'
-        artist_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, artist_api, headers=self.req_header))
+        artist_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, artist_api))
         self._covers = artist_info['images']
         self._metadata = {
             'name': artist_info['name'],
@@ -382,7 +380,7 @@ class SpotifyArtist(AbstractMediaCollection):
                                 f'include_groups=album,single&market=from_token&limit=20&offset=0'
         while True:
             artist_album_info: dict = json.loads(
-                cached_request(self.http_cache, self.cache_duration, artist_album_api, headers=self.req_header))
+                cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, artist_album_api))
             for album in artist_album_info['items']:
                 self._items_id.append(album['id'])
             if artist_album_info['next']:
@@ -426,7 +424,7 @@ class SpotifyPlaylist(AbstractMediaCollection):
         fields = "name,description,followers,images,id,external_urls," \
                  "name,owner(id,display_name,external_urls),tracks.items(added_by.id,track.id),tracks.next"
         playlist_api: str = f'https://api.spotify.com/v1/playlists/{self.id}?fields={fields}&market=from_token'
-        playlist_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, playlist_api, headers=self.req_header))
+        playlist_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, playlist_api))
         self._covers = playlist_info['images']
         self._metadata = {
             'name': playlist_info['name'],
@@ -455,7 +453,7 @@ class SpotifyPlaylist(AbstractMediaCollection):
                 # Fix the uri so it actually works
                 next_uri_fixed: str = playlist_info['tracks']['next'].replace(f'fields={fields}', 'next,items(added_by.id,track.id)')
                 tracks_api_resp: dict = json.loads(
-                    cached_request(self.http_cache, self.cache_duration, next_uri_fixed, headers=self.req_header)
+                    cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, next_uri_fixed)
                 )
                 # playlist_info = {}
                 playlist_info = {'tracks': tracks_api_resp}
@@ -517,7 +515,7 @@ class SpotifyPodcast(AbstractMediaCollection):
         :return: None
         """
         podcast_api: str = f'https://api.spotify.com/v1/shows/{self.id}?market=from_token'
-        podcast_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, podcast_api, headers=self.req_header))
+        podcast_info: dict = json.loads(cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, podcast_api))
         self._covers = podcast_info['images']
         self._metadata = {
             'name': podcast_info['name'],
@@ -541,7 +539,7 @@ class SpotifyPodcast(AbstractMediaCollection):
                 self._items_id.append(item['id'])
             if podcast_info['episodes']['next']:
                 podcast_info = json.loads(
-                    cached_request(self.http_cache, self.cache_duration, podcast_info['episodes']['next'], headers=self.req_header)
+                    cached_request(self.http_cache, self.cache_duration, lambda : self.req_header, podcast_info['episodes']['next'])
                 )
             else:
                 break

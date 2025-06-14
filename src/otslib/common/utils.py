@@ -1,12 +1,14 @@
 import os
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 import requests
 import json
 import hashlib
 import time
 from ..common.formating import sanitize_string
-from typing import Union
+from typing import Union, Optional
+from copy import deepcopy
 
 GENRES = {
     "acoustic", "afrobeat", "alt-rock", "alternative",
@@ -67,46 +69,72 @@ def flatten_dictionary(input_dict, parent_key='', sep='_'):
 
     return flattened_dict
 
-def cached_request(cache_dir: Union[str, None], lifetime: int, *args, **kwargs) -> str:
+
+def cached_request(cache_dir: Union[str, None], lifetime: int,
+                   get_header_func: Optional[Callable] = None,
+                   *args, **kwargs) -> str:
     """
-    Call requests.ge() while caching the text response to cache directory
-    :param cache_dir:  where cache should be store, None disables the cache
-    :param lifetime: Time in seconds up to which cache is valid from now, 0 sets unlimited lifetime
+    Call requests.get() while caching the text response to cache directory
+    :param cache_dir: Where cache should be stored, None disables the cache
+    :param lifetime: Time in seconds up to which cache is valid from now,
+                    0 sets unlimited lifetime
+    :param get_header_func: Function used to get additional headers
     :param args: Args sent to requests.get()
     :param kwargs: Extra parameters sent to requests.get()
     :return: String response
     """
-    cache_file: str = ''
-    if cache_dir is not None or os.environ.get('OTSLIB_DISABLE_CACHE', 0) == 1:
-        kwargs_sig: str = json.dumps(kwargs).replace(kwargs.get('headers', {}).get('Authorization', "AuthorizationToken"),"BEARER USER_TOKEN")
-        args_hash: str = hashlib.sha224(
-            f'{str(args)}:{kwargs_sig}'.encode()
-        ).hexdigest()
-        print(
-            'Cache HASH : ',
-            args_hash,
-            '\t',
-            f'{str(args)}:{kwargs_sig}'
-        )
-        cache_dir = os.path.join(os.path.abspath(cache_dir), 'api_cache')
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_file: str = os.path.abspath(os.path.join(cache_dir, f'{args_hash}.acache'))
-        if os.path.isfile(cache_file):
-            # Cache exists for the request
-            with open(cache_file, 'r', encoding='utf-8') as cache:
-                lines: list = cache.readlines()
-                if int(lines[0]) == 0 or int(lines[0]) < int(time.time()):
-                    # Cache is valid
-                    data = '\n'.join(line for line in lines[1:])
-                    return data.strip()
-        # The cache has expired or does not exist
-    request = requests.get(*args, **kwargs)
-    if (200 <= request.status_code <= 299) and cache_dir is not None:
-        # Request was successful, cache the response
-        with open(cache_file, 'w', encoding='utf-8') as cache:
-            cache.write(str(int(time.time()) + lifetime) + '\n' + request.text.strip())
-    return request.text
+    # Initialize headers
+    headers = kwargs.pop('headers', {}).copy()  # Create a copy to avoid modifying input
 
+    # Handle get_header_func
+    if get_header_func is None:
+        def get_header_func(): return {}
+
+    # Check if caching is disabled
+    if cache_dir is None or os.environ.get('OTSLIB_DISABLE_CACHE', '0') == '1':
+        headers.update(get_header_func())
+        kwargs['headers'] = headers
+        return requests.get(*args, **kwargs).text
+
+    # Generate cache hash
+    kwargs_sig = json.dumps(kwargs, sort_keys=True)  # sort_keys for consistent ordering
+    args_hash = hashlib.sha224(
+        f'{str(args)}:{kwargs_sig}'.encode()
+    ).hexdigest()
+    print(
+        'Cache HASH : ',
+        args_hash,
+        '\t',
+        f'{str(args)}:{kwargs_sig}'
+    )
+    cache_dir = os.path.join(os.path.abspath(cache_dir), 'api_cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f'{args_hash}.acache')
+
+    # Check cache if it exists and is valid
+    if os.path.isfile(cache_file):
+        with open(cache_file, 'r', encoding='utf-8') as cache:
+            try:
+                expiry_time = int(cache.readline())
+                if lifetime == 0 or expiry_time >= int(time.time()):
+                    return cache.read().strip()
+            except (ValueError, IndexError):
+                pass  # Cache file corrupted, proceed with fresh request
+
+    # Make the request
+    headers.update(get_header_func())
+    kwargs['headers'] = headers
+    request = requests.get(*args, **kwargs)
+
+    # Cache if successful
+    if 200 <= request.status_code < 300:
+        try:
+            with open(cache_file, 'w', encoding='utf-8') as cache:
+                expiry = int(time.time()) + lifetime if lifetime != 0 else 0
+                cache.write(f"{expiry}\n{request.text.strip()}")
+        except OSError as e:
+            pass
+    return request.text
 
 def convert_from_ogg(ffmpeg_path: str, source_media: str, bitrate: int,
                      extra_params: Union[list, None] = None) -> os.PathLike:
